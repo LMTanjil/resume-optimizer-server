@@ -237,7 +237,7 @@ const client = new OpenAI({
 });
 ```
 
-**Model to use:** `llama-3.3-70b-versatile`
+**Model to use:** `openai/gpt-oss-120b` (replaces `llama-3.3-70b-versatile`, which is no longer available on Groq)
 
 **System prompt:**
 ```

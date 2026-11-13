@@ -9,7 +9,7 @@ const client = new OpenAI({
   baseURL: "https://api.groq.com/openai/v1",
 });
 
-const MODEL = "llama-3.3-70b-versatile";
+const MODEL = "openai/gpt-oss-120b";
 const MAX_JOB_DESCRIPTION_LENGTH = 20000;
 
 const SYSTEM_PROMPT = `You are an expert resume analyzer.
