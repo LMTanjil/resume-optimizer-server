@@ -15,46 +15,59 @@ Extract the information from the resume text provided by the user.
 Return ONLY a valid JSON object with no extra text, no markdown, no backticks.
 The JSON must follow this exact structure:
 {
-  "contact": {
-    "name": <string>,
-    "email": <string>,
-    "phone": <string>,
-    "location": <string>,
-    "linkedin": <string>,
-    "github": <string>,
-    "website": <string>
-  },
-  "summary": <string>,
-  "experience": [
-    {
-      "company": <string>,
-      "role": <string>,
-      "duration": <string>,
-      "bullets": [<string>]
-    }
-  ],
-  "education": [
-    {
-      "institution": <string>,
-      "degree": <string>,
-      "year": <string>
-    }
-  ],
-  "skills": [<string>],
-  "projects": [
-    {
+  "title": <string>,
+  "content": {
+    "contact": {
       "name": <string>,
-      "description": <string>,
-      "tech": [<string>],
-      "link": <string>
-    }
-  ]
+      "email": <string>,
+      "phone": <string>,
+      "location": <string>,
+      "linkedin": <string>,
+      "github": <string>,
+      "website": <string>
+    },
+    "summary": <string>,
+    "experience": [
+      {
+        "company": <string>,
+        "role": <string>,
+        "duration": <string>,
+        "bullets": [<string>]
+      }
+    ],
+    "education": [
+      {
+        "institution": <string>,
+        "degree": <string>,
+        "year": <string>
+      }
+    ],
+    "skills": [<string>],
+    "projects": [
+      {
+        "name": <string>,
+        "description": <string>,
+        "tech": [<string>],
+        "link": <string>
+      }
+    ]
+  }
 }
-Rules:
-- Use an empty string "" for any text field not present in the resume.
+Rules for "title":
+- Format it as "{Role} Resume", based on the person's most recent or most prominent job title, or their primary skill set if there is no job title.
+- Examples: "Frontend Developer Resume", "Full Stack Engineer Resume".
+- If no role can be inferred, use exactly "My Resume".
+Rules for "content.summary":
+- Look for a professional summary, objective, about, or profile section and use its text.
+- If no such section exists, write a 2-3 sentence professional summary based on the person's experience and skills.
+- Never leave the summary empty.
+General rules:
+- Use an empty string "" for any other text field not present in the resume.
 - Use an empty array [] for any list with no entries.
-- Do not invent information that is not in the resume.
+- Apart from the title and a generated summary, do not invent information that is not in the resume.
 - Keep bullet points as written, one string per bullet.`;
+
+const DEFAULT_TITLE = "My Resume";
 
 const getExtension = (filename) => path.extname(filename || "").toLowerCase();
 
@@ -113,14 +126,41 @@ const objArray = (value) =>
     ? value.filter((item) => item !== null && typeof item === "object" && !Array.isArray(item))
     : [];
 
-// Coerces the model output into the resume content shape (plus contact),
-// so the result can be sent straight to POST /api/resumes.
-const normalizeResume = (raw) => {
-  if (raw === null || typeof raw !== "object" || Array.isArray(raw)) {
+const isObject = (value) => value !== null && typeof value === "object" && !Array.isArray(value);
+
+// Last-resort summary if the model ignores the "never empty" rule.
+const buildFallbackSummary = (content) => {
+  const role = content.experience[0]?.role;
+  const skills = content.skills.slice(0, 5).join(", ");
+  if (role && skills) return `${role} with experience in ${skills}.`;
+  if (role) return `Experienced ${role}.`;
+  if (skills) return `Professional with skills in ${skills}.`;
+  return "Motivated professional seeking new opportunities.";
+};
+
+const normalizeTitle = (value) => {
+  const title = str(value).trim();
+  return title ? title.slice(0, 255) : DEFAULT_TITLE;
+};
+
+// Coerces the model output into { title, content }, where content matches the
+// resume content shape (plus contact) used by POST /api/resumes.
+const normalizeResult = (raw) => {
+  if (!isObject(raw)) {
     throw serverError(EXTRACTION_FAILED);
   }
 
-  const contact = raw.contact && typeof raw.contact === "object" ? raw.contact : {};
+  // Accept a flat object too, in case the model skips the "content" wrapper.
+  const content = normalizeContent(isObject(raw.content) ? raw.content : raw);
+  if (!content.summary.trim()) {
+    content.summary = buildFallbackSummary(content);
+  }
+
+  return { title: normalizeTitle(raw.title), content };
+};
+
+const normalizeContent = (raw) => {
+  const contact = isObject(raw.contact) ? raw.contact : {};
 
   return {
     contact: {
@@ -193,5 +233,5 @@ export const importResume = async (file) => {
     throw serverError(EXTRACTION_FAILED);
   }
 
-  return normalizeResume(parsed);
+  return normalizeResult(parsed);
 };
