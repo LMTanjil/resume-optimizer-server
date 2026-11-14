@@ -18,6 +18,14 @@ export const errorHandler = (err, req, res, next) => {
   } else if (err.type === "entity.too.large") {
     status = 400;
     message = "Request body too large";
+  } else if (err.name === "MulterError") {
+    status = 400;
+    message =
+      err.code === "LIMIT_FILE_SIZE"
+        ? "File too large. Maximum size is 5MB"
+        : err.code === "LIMIT_UNEXPECTED_FILE"
+          ? "Unexpected file field. Use the field name 'file'"
+          : err.message;
   } else if (err.code === "23505") {
     status = 400;
     message = "Resource already exists";

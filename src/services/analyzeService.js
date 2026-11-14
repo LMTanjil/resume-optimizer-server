@@ -4,12 +4,13 @@ import * as analysisRepository from "../repositories/analysisRepository.js";
 import { badRequest, notFoundError, serverError } from "../utils/httpError.js";
 import { parseId } from "./resumeService.js";
 
-const client = new OpenAI({
+// Shared Groq client and model — also used by importService.js
+export const client = new OpenAI({
   apiKey: process.env.GROQ_API_KEY,
   baseURL: "https://api.groq.com/openai/v1",
 });
 
-const MODEL = "openai/gpt-oss-120b";
+export const MODEL = "openai/gpt-oss-120b";
 const MAX_JOB_DESCRIPTION_LENGTH = 20000;
 
 const SYSTEM_PROMPT = `You are an expert resume analyzer.

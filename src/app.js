@@ -3,6 +3,7 @@ import cors from "cors";
 import authRoutes from "./routes/authRoutes.js";
 import resumeRoutes from "./routes/resumeRoutes.js";
 import analyzeRoutes from "./routes/analyzeRoutes.js";
+import importRoutes from "./routes/importRoutes.js";
 import { notFound, errorHandler } from "./middleware/errorHandler.js";
 
 const app = express();
@@ -17,6 +18,7 @@ app.get("/health", (req, res) => {
 app.use("/api/auth", authRoutes);
 app.use("/api/resumes", resumeRoutes);
 app.use("/api/analyze", analyzeRoutes);
+app.use("/api/resume", importRoutes);
 
 app.use(notFound);
 app.use(errorHandler);
