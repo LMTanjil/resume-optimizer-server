@@ -20,13 +20,33 @@ const generateToken = (user) =>
     expiresIn: "7d",
   });
 
+const MIN_NAME_LENGTH = 2;
+const MAX_NAME_LENGTH = 100;
+
+const validateName = (name) => {
+  const trimmed = typeof name === "string" ? name.trim() : "";
+  if (!trimmed) {
+    throw badRequest("Name is required");
+  }
+  if (trimmed.length < MIN_NAME_LENGTH) {
+    throw badRequest(`Name must be at least ${MIN_NAME_LENGTH} characters`);
+  }
+  if (trimmed.length > MAX_NAME_LENGTH) {
+    throw badRequest(`Name must be at most ${MAX_NAME_LENGTH} characters`);
+  }
+  return trimmed;
+};
+
+// Explicit whitelist: password_hash can never leak into a response.
 const toPublicUser = (user) => ({
   id: user.id,
+  name: user.name,
   email: user.email,
   created_at: user.created_at,
 });
 
-export const register = async (email, password) => {
+export const register = async (email, password, name) => {
+  const validName = validateName(name);
   validateCredentials(email, password);
   const normalizedEmail = normalizeEmail(email);
 
@@ -43,7 +63,7 @@ export const register = async (email, password) => {
   }
 
   const password_hash = await bcrypt.hash(password, SALT_ROUNDS);
-  const user = await userRepository.create(normalizedEmail, password_hash);
+  const user = await userRepository.create(normalizedEmail, password_hash, validName);
 
   return { token: generateToken(user), user: toPublicUser(user) };
 };
