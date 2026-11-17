@@ -13,9 +13,16 @@ export const client = new OpenAI({
 export const MODEL = "openai/gpt-oss-120b";
 const MAX_JOB_DESCRIPTION_LENGTH = 20000;
 
-const SYSTEM_PROMPT = `You are an expert resume analyzer.
-Analyze the resume against the job description.
-Return ONLY a valid JSON object with no extra text, no markdown, no backticks.
+const SYSTEM_PROMPT = `You are an expert resume analyzer. Your job is to carefully compare a resume against a job description and return a detailed analysis.
+
+Return ONLY a valid JSON object. No markdown, no backticks, no extra text before or after.
+
+Rules:
+- match_score: a number 0-100 representing how well the resume matches the job description
+- missing_keywords: list EVERY skill, tool, technology, or qualification mentioned in the job description that is NOT present in the resume. Be thorough — if the job asks for SQL and the resume has no SQL, include it.
+- strengths: list specific skills, experiences, or qualifications from the resume that directly match what the job description asks for. Never return an empty array if there is any match.
+- suggestions: give 3 to 5 specific, actionable suggestions for improving the resume for this specific job. Each suggestion must be a complete sentence. Never return an empty array.
+
 The JSON must follow this exact structure:
 {
   "match_score": <number 0-100>,
@@ -28,6 +35,14 @@ const buildUserPrompt = (resumeContent, jobDescription) =>
   `Resume: ${JSON.stringify(resumeContent)}
 
 Job Description: ${jobDescription}`;
+
+// Without JSON mode the model can occasionally wrap its output in ```json
+// fences or add stray text, so isolate the outermost {...} before parsing.
+const extractJson = (text) => {
+  const start = text.indexOf("{");
+  const end = text.lastIndexOf("}");
+  return start !== -1 && end > start ? text.slice(start, end + 1) : text;
+};
 
 const toStringArray = (value) =>
   Array.isArray(value) ? value.filter((item) => typeof item === "string") : [];
@@ -61,7 +76,6 @@ const callGroq = async (systemPrompt, userPrompt) => {
         { role: "user", content: userPrompt },
       ],
       temperature: 0.2,
-      response_format: { type: "json_object" },
     });
   } catch (err) {
     console.error("Groq API error:", err?.message ?? err);
@@ -106,7 +120,7 @@ export const analyze = async (userId, rawResumeId, jobDescription) => {
   // 4. Parse response
   let parsed;
   try {
-    parsed = JSON.parse(responseText);
+    parsed = JSON.parse(extractJson(responseText));
   } catch {
     throw serverError("AI service returned invalid JSON");
   }
