@@ -2,7 +2,7 @@ import path from "node:path";
 import multer from "multer";
 import mammoth from "mammoth";
 import { PDFParse } from "pdf-parse";
-import { client, MODEL } from "./analyzeService.js";
+import { client, MODEL, extractJson } from "./analyzeService.js";
 import { badRequest, serverError } from "../utils/httpError.js";
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
@@ -203,7 +203,6 @@ const callGroq = async (resumeText) => {
         { role: "user", content: `Resume text:\n\n${resumeText}` },
       ],
       temperature: 0,
-      response_format: { type: "json_object" },
     });
     const text = completion.choices?.[0]?.message?.content;
     if (!text) throw new Error("Empty response from AI service");
@@ -228,7 +227,7 @@ export const importResume = async (file) => {
 
   let parsed;
   try {
-    parsed = JSON.parse(responseText);
+    parsed = JSON.parse(extractJson(responseText));
   } catch {
     throw serverError(EXTRACTION_FAILED);
   }

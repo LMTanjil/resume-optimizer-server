@@ -38,7 +38,8 @@ Job Description: ${jobDescription}`;
 
 // Without JSON mode the model can occasionally wrap its output in ```json
 // fences or add stray text, so isolate the outermost {...} before parsing.
-const extractJson = (text) => {
+// Also used by importService.js.
+export const extractJson = (text) => {
   const start = text.indexOf("{");
   const end = text.lastIndexOf("}");
   return start !== -1 && end > start ? text.slice(start, end + 1) : text;
