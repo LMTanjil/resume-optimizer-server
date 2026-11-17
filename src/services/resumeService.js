@@ -43,6 +43,29 @@ const validateTitle = (title) => {
   return trimmed;
 };
 
+const CONTACT_FIELDS = ["name", "email", "phone", "location", "linkedin", "github", "website"];
+
+// contact is optional; when present it must be an object whose known fields
+// are optional strings. Missing fields default to "".
+const validateContact = (contact) => {
+  if (contact !== undefined && contact !== null && !isPlainObject(contact)) {
+    throw badRequest("content.contact must be an object");
+  }
+
+  const source = contact ?? {};
+  const result = {};
+  for (const field of CONTACT_FIELDS) {
+    const value = source[field];
+    if (value === undefined || value === null) {
+      result[field] = "";
+    } else {
+      requireString(value, `content.contact.${field}`);
+      result[field] = value;
+    }
+  }
+  return result;
+};
+
 // Validates the resume content against the required JSONB shape and
 // returns a normalized copy containing only the known fields.
 const validateContent = (content) => {
@@ -50,7 +73,9 @@ const validateContent = (content) => {
     throw badRequest("Content must be an object");
   }
 
-  const { summary, experience, education, skills, projects } = content;
+  const { contact, summary, experience, education, skills, projects } = content;
+
+  const validContact = validateContact(contact);
 
   requireString(summary, "content.summary");
 
@@ -82,6 +107,7 @@ const validateContent = (content) => {
   });
 
   return {
+    contact: validContact,
     summary,
     experience: experience.map(({ company, role, duration, bullets }) => ({
       company,
