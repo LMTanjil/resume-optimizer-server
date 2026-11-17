@@ -31,10 +31,57 @@ The JSON must follow this exact structure:
   "strengths": [<string>]
 }`;
 
-const buildUserPrompt = (resumeContent, jobDescription) =>
-  `Resume: ${JSON.stringify(resumeContent)}
+// Converts the JSONB resume into readable plain text so the model gets
+// clearer context than a raw JSON dump.
+const buildUserPrompt = (resumeContent, jobDescription) => {
+  const c = resumeContent;
 
-Job Description: ${jobDescription}`;
+  const lines = [];
+
+  if (c.contact?.name) lines.push(`Name: ${c.contact.name}`);
+  if (c.summary) lines.push(`\nSummary:\n${c.summary}`);
+
+  if (c.experience?.length) {
+    lines.push("\nWork Experience:");
+    c.experience.forEach((exp) => {
+      lines.push(`- ${exp.role} at ${exp.company} (${exp.duration})`);
+      if (exp.bullets?.length) {
+        exp.bullets.forEach((b) => lines.push(`  • ${b}`));
+      }
+    });
+  }
+
+  if (c.education?.length) {
+    lines.push("\nEducation:");
+    c.education.forEach((edu) => {
+      lines.push(`- ${edu.degree} at ${edu.institution} (${edu.year})`);
+    });
+  }
+
+  if (c.skills?.length) {
+    lines.push(`\nSkills:\n${c.skills.join(", ")}`);
+  }
+
+  if (c.projects?.length) {
+    lines.push("\nProjects:");
+    c.projects.forEach((p) => {
+      lines.push(`- ${p.name}: ${p.description}`);
+      if (p.tech?.length) lines.push(`  Tech: ${p.tech.join(", ")}`);
+    });
+  }
+
+  const resumeText = lines.join("\n");
+
+  return `Here is the candidate's resume:
+
+${resumeText}
+
+Here is the job description:
+
+${jobDescription}
+
+Analyze how well this resume matches the job description and return the JSON result.`;
+};
 
 // Without JSON mode the model can occasionally wrap its output in ```json
 // fences or add stray text, so isolate the outermost {...} before parsing.
